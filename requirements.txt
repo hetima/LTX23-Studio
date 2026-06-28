@@ -17,8 +17,8 @@ tqdm
 
 # ComfyUI core requirements (also pip-installed by setup.sh from comfyui/requirements.txt
 # locally, but Spaces won't run setup.sh — these are the deps ComfyUI itself needs)
-# -r comfyui/requirements.txt
-transformers>=4.50,<6
+-r comfyui/requirements.txt
+# transformers>=4.50,<6
 tokenizers
 sentencepiece
 av
