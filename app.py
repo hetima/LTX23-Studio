@@ -10,6 +10,9 @@ import sys
 import time
 from typing import Any
 
+# Notebook由来のinline backendは通常のmatplotlibでは無効なので、Gradio用に固定する。
+os.environ["MPLBACKEND"] = "Agg"
+
 import gradio as gr
 
 import backend as backend_module
