@@ -531,17 +531,6 @@ def build_app() -> gr.Blocks:
             '  <span class="aio-mode-tag" id="aio-mode-tag">T2V</span>'
             '</div>'
         )
-        gr.HTML(
-            '<div class="aio-tipbar">'
-            'Built with care. '
-            '<strong>Drop a <span class="aio-heart">♥</span> at the top</strong> to support it '
-            '· '
-            'Follow <a href="https://huggingface.co/techfreakworm" target="_blank" rel="noopener noreferrer">@techfreakworm</a> '
-            'for what\'s next '
-            '· '
-            '<a href="https://discord.gg/qbn3exeEXa" target="_blank" rel="noopener noreferrer">Chat with the maker on Discord</a>'
-            '</div>'
-        )
 
         with gr.Row(elem_classes=["aio-shell"]):
             # Drawer (drawer behaves as fixed sidebar ≥1024 px;
@@ -562,19 +551,10 @@ def build_app() -> gr.Blocks:
                 unload_btn = gr.Button("Unload all models", size="sm", variant="secondary")
                 gr.Markdown("Settings", elem_classes=["aio-drawer-heading"])
                 gr.Markdown(
-                    "Output: `comfyui/output/LTX2.3/`<br>"
-                    "Set `LTX23_AIO_VRAM=lowvram|normalvram|highvram` to override "
+                    "Output: comfyui/output/LTX2.3/<br>"
+                    "Set LTX23_AIO_VRAM=lowvram|normalvram|highvram to override "
                     "the auto-detected VRAM tier.",
                     elem_classes=["aio-model-badge"],
-                )
-                gr.Markdown("Community", elem_classes=["aio-drawer-heading"])
-                gr.HTML(
-                    '<a class="aio-discord-btn" href="https://discord.gg/qbn3exeEXa" '
-                    'target="_blank" rel="noopener noreferrer">'
-                    '<span class="aio-discord-glyph">✨</span>'
-                    '<span>Chat with the maker on Discord</span>'
-                    '<span class="aio-discord-arrow">→</span>'
-                    '</a>'
                 )
 
             # Body — unchanged, still hosts the 6 mode tabs.
@@ -780,7 +760,7 @@ def _render_one_mode(name: str) -> dict:
             # Live frames-display update when seconds/fps change
             def _update_frames(seconds, fps):
                 f = max(9, int(round(float(seconds) * float(fps) / 8) * 8) + 1)
-                return f"**Frames:** {f}  (`{seconds}s` × `{fps} fps`)"
+                return f"**Frames:** {f}  ({seconds}s × {fps} fps)"
 
             handles["seconds"].change(
                 fn=_update_frames,
@@ -795,7 +775,7 @@ def _render_one_mode(name: str) -> dict:
 
         with gr.Column(scale=2, min_width=280):
             handles["status"] = ui.status_banner()
-            handles["video_out"] = gr.Video(label="Output", autoplay=True)
+            handles["video_out"] = gr.Video(label="Output", autoplay=False)
             handles["history"] = gr.Markdown("")
 
     return handles
