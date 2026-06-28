@@ -66,6 +66,33 @@ def _git_clone(url: str, dst: pathlib.Path, ref: str) -> None:
     subprocess.check_call(["git", "-C", str(dst), "checkout", "-q", "FETCH_HEAD"])
 
 
+def _ensure_git_checkout(url: str, dst: pathlib.Path, ref: str) -> bool:
+    """Ensure *dst* exists as *url* checked out at *ref*."""
+    import shutil
+    import subprocess
+
+    dst = pathlib.Path(dst)
+    if not dst.exists():
+        _git_clone(url, dst, ref)
+        return True
+
+    if not (dst / ".git").exists():
+        shutil.rmtree(dst)
+        _git_clone(url, dst, ref)
+        return True
+
+    current = subprocess.check_output(
+        ["git", "-C", str(dst), "rev-parse", "HEAD"],
+        text=True,
+    ).strip()
+    if current == ref:
+        return False
+
+    subprocess.check_call(["git", "-C", str(dst), "fetch", "--depth", "1", "origin", ref])
+    subprocess.check_call(["git", "-C", str(dst), "checkout", "-q", "FETCH_HEAD"])
+    return True
+
+
 def _mirror_preload_hf_cache() -> None:
     """Mirror the build-populated HF cache into a writable runtime tree.
 
@@ -159,25 +186,39 @@ def _bootstrap() -> None:
     # across calls within a single deploy.
     comfy_dir = (pathlib.Path.home() / "comfyui") if on_spaces else pathlib.Path("comfyui")
 
-    if on_spaces and not comfy_dir.exists():
+    cold_comfy_clone = on_spaces and not comfy_dir.exists()
+    if cold_comfy_clone:
         print(f"[bootstrap] cold start on Spaces; cloning ComfyUI to {comfy_dir}", flush=True)
         comfy_dir.parent.mkdir(parents=True, exist_ok=True)
         _git_clone(COMFYUI_REPO, comfy_dir, ref=COMFYUI_COMMIT)
+
+    req_paths: list[pathlib.Path] = []
+    if on_spaces:
+        custom_nodes_dir = comfy_dir / "custom_nodes"
+        custom_nodes_dir.mkdir(parents=True, exist_ok=True)
         for node_url, node_ref in CUSTOM_NODES_PINNED:
             name = node_url.rstrip(".git").rsplit("/", 1)[-1]
-            _git_clone(node_url, comfy_dir / "custom_nodes" / name, ref=node_ref)
+            node_dir = custom_nodes_dir / name
+            print(f"[bootstrap] ensuring custom node {name} @ {node_ref}", flush=True)
+            changed = _ensure_git_checkout(node_url, node_dir, ref=node_ref)
+            req_path = node_dir / "requirements.txt"
+            req_stamp = node_dir / ".ltx23-aio-requirements-installed"
+            if (changed or not req_stamp.exists()) and req_path.exists():
+                req_paths.append(req_path)
         import subprocess
 
-        # ComfyUI core requirements + each custom node's requirements
-        for req_path in [
-            comfy_dir / "requirements.txt",
-            *(cn / "requirements.txt" for cn in (comfy_dir / "custom_nodes").iterdir()),
-        ]:
+        if cold_comfy_clone:
+            req_paths.insert(0, comfy_dir / "requirements.txt")
+
+        # ComfyUI core requirements + changed custom node requirements.
+        for req_path in req_paths:
             if req_path.exists():
                 print(f"[bootstrap] pip install -r {req_path}", flush=True)
                 subprocess.check_call(
                     [sys.executable, "-m", "pip", "install", "--quiet", "-r", str(req_path)]
                 )
+                if req_path.parent != comfy_dir:
+                    (req_path.parent / ".ltx23-aio-requirements-installed").touch()
 
     if str(comfy_dir) not in sys.path:
         sys.path.insert(0, str(comfy_dir))
